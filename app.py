@@ -78,18 +78,56 @@ def pitch_shift_audio(input_path, output_path, semitones=-5):
 
 
 def gen_audio(text, voice, output_path, rate="+0%", pitch="+0Hz"):
-    """توليد الصوت باستخدام gTTS (يعمل بدون websockets)"""
-    print(f"--> gTTS: generating audio...")
-    try:
-        # gTTS يدعم العربية
-        slow = (rate == "-30%")
-        tts = gTTS(text=text, lang='ar', slow=slow)
-        tts.save(output_path)
-        print(f"--> Audio OK")
-        return True
-    except Exception as e:
-        print(f"--> Audio failed: {str(e)[:100]}")
-        raise
+    """توليد الصوت باستخدام gTTS مع تغيير النغمة"""
+    print(f"--> TTS: voice={voice}, rate={rate}, pitch={pitch}")
+    
+    slow = (rate == "-30%")
+    
+    # توليد الصوت الأصلي
+    temp_path = output_path + ".raw.mp3"
+    tts = gTTS(text=text, lang='ar', slow=slow)
+    tts.save(temp_path)
+    
+    # تحديد الأصوات الذكورية
+    male_voices = [
+        "ShakirNeural", "HamedNeural", "JamalNeural", "IsmaelNeural",
+        "HamdanNeural", "BasselNeural", "OmarNeural", "HediNeural",
+        "TaimNeural", "LaithNeural", "RamiNeural", "SalehNeural"
+    ]
+    is_male = any(v in voice for v in male_voices)
+    
+    if is_male:
+        # تطبيق تخفيض النغمة
+        try:
+            import soundfile as sf
+            from scipy.signal import resample
+            import numpy as np
+            import os
+            
+            data, sr = sf.read(temp_path)
+            if len(data.shape) > 1:
+                data = data[:, 0]
+            
+            # عامل > 1 = صوت أخفض + أبطأ
+            length_factor = 1.35
+            new_length = int(len(data) * length_factor)
+            resampled = resample(data, new_length)
+            
+            sf.write(output_path, resampled, sr)
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            print("--> Male voice OK")
+        except Exception as e:
+            print(f"--> Pitch failed: {e}")
+            import shutil
+            shutil.copy(temp_path, output_path)
+    else:
+        import shutil
+        shutil.move(temp_path, output_path)
+    
+    print("--> Audio OK")
+    return True
+
 
 def add_music_audio(aud, mus, out):
     subprocess.run(["ffmpeg","-y","-i",aud,"-i",mus,"-filter_complex","[0:a]volume=1.0[a1];[1:a]volume=0.20[a2];[a1][a2]amix=inputs=2:duration=first[aout]","-map","[aout]","-c:a","libmp3lame","-b:a","192k",out], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
