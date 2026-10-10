@@ -97,7 +97,7 @@ def tts_gen():
     effect = d.get('voice_effect','normal')
     pitch = PITCH_MAP.get(effect, "+0Hz")
     fn = f"tts_{uuid.uuid4().hex[:8]}.mp3"
-    out = os.path.join('/root/tts_app', fn)
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), fn)
     try:
         print(f"--> TTS: voice={voice}, effect={effect}, pitch={pitch}")
         gen_audio(text, voice, out, rate, pitch)
@@ -126,7 +126,7 @@ def del_h(filename):
     h = load_hist()
     h = [x for x in h if x['file'] != filename]
     save_hist(h)
-    p = os.path.join('/root/tts_app', filename)
+    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
     if os.path.exists(p): os.remove(p)
     return jsonify({'success': True}), 200
 
@@ -134,14 +134,14 @@ def del_h(filename):
 def clr_h():
     h = load_hist()
     for x in h:
-        p = os.path.join('/root/tts_app', x['file'])
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), x['file'])
         if os.path.exists(p): os.remove(p)
     save_hist([])
     return jsonify({'success': True}), 200
 
 @app.route('/download/<filename>')
 def dl(filename):
-    return send_from_directory('/root/tts_app', filename, as_attachment=True)
+    return send_from_directory(os.path.dirname(os.path.abspath(__file__)), filename, as_attachment=True)
 
 if __name__ == '__main__':
     import os
