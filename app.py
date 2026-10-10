@@ -43,88 +43,14 @@ PITCH_MAP = {
 }
 
 
-import numpy as np
-import soundfile as sf
 import io
-
-def pitch_shift_audio(input_path, output_path, semitones=-5):
-    """خفض النغمة لتحويل الصوت الأنثوي إلى ذكوري"""
-    try:
-        from scipy.signal import resample
-        
-        # قراءة الصوت
-        data, samplerate = sf.read(input_path)
-        if len(data.shape) > 1:
-            data = data[:, 0]  # mono
-        
-        # حساب معامل النغمة
-        factor = 2 ** (semitones / 12.0)
-        
-        # إعادة العينة (يغير النغمة + السرعة)
-        length_factor = 2 ** (-semitones / 12.0)
-        new_length = int(len(data) * length_factor)
-        resampled = resample(data, new_length)
-        
-        # حفظ بمعدل العينة الأصلي
-        sf.write(output_path, resampled, samplerate)
-        
-        print(f"--> Pitch shifted OK ({semitones} semitones)")
-        return True
-    except Exception as e:
-        print(f"--> Pitch shift failed: {e}")
-        import shutil
-        shutil.copy(input_path, output_path)
-        return False
 
 
 def gen_audio(text, voice, output_path, rate="+0%", pitch="+0Hz"):
-    """توليد الصوت باستخدام gTTS مع تغيير النغمة"""
-    print(f"--> TTS: voice={voice}, rate={rate}, pitch={pitch}")
-    
+    print(f"--> gTTS: voice={voice}, rate={rate}")
     slow = (rate == "-30%")
-    
-    # توليد الصوت الأصلي
-    temp_path = output_path + ".raw.mp3"
     tts = gTTS(text=text, lang='ar', slow=slow)
-    tts.save(temp_path)
-    
-    # تحديد الأصوات الذكورية
-    male_voices = [
-        "ShakirNeural", "HamedNeural", "JamalNeural", "IsmaelNeural",
-        "HamdanNeural", "BasselNeural", "OmarNeural", "HediNeural",
-        "TaimNeural", "LaithNeural", "RamiNeural", "SalehNeural"
-    ]
-    is_male = any(v in voice for v in male_voices)
-    
-    if is_male:
-        # تطبيق تخفيض النغمة
-        try:
-            import soundfile as sf
-            from scipy.signal import resample
-            import numpy as np
-            import os
-            
-            data, sr = sf.read(temp_path)
-            if len(data.shape) > 1:
-                data = data[:, 0]
-            
-            # عامل > 1 = صوت أخفض + أبطأ
-            length_factor = 1.35
-            new_length = int(len(data) * length_factor)
-            resampled = resample(data, new_length)
-            
-            sf.write(output_path, resampled, sr)
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-            print("--> Male voice OK")
-        except Exception as e:
-            print(f"--> Pitch failed: {e}")
-            import shutil
-            shutil.copy(temp_path, output_path)
-    else:
-        import shutil
-        shutil.move(temp_path, output_path)
-    
+    tts.save(output_path)
     print("--> Audio OK")
     return True
 
