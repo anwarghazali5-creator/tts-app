@@ -50,23 +50,32 @@ import io
 def pitch_shift_audio(input_path, output_path, semitones=-5):
     """خفض النغمة لتحويل الصوت الأنثوي إلى ذكوري"""
     try:
+        from scipy.signal import resample
+        
         # قراءة الصوت
         data, samplerate = sf.read(input_path)
+        if len(data.shape) > 1:
+            data = data[:, 0]  # mono
         
-        # تغيير النغمة بتغيير معدل العينة
+        # حساب معامل النغمة
         factor = 2 ** (semitones / 12.0)
-        new_samplerate = int(samplerate * factor)
         
-        # حفظ بمعدل العينة الجديد (يغير النغمة والسرعة)
-        sf.write(output_path, data, new_samplerate)
+        # إعادة العينة (يغير النغمة + السرعة)
+        length_factor = 2 ** (-semitones / 12.0)
+        new_length = int(len(data) * length_factor)
+        resampled = resample(data, new_length)
         
-        # استخدام gTTS لجعل الصوت بالسرعة الصحيحة
-        # (اختياري: نتركه كما هو)
-        print("--> Pitch shifted OK")
+        # حفظ بمعدل العينة الأصلي
+        sf.write(output_path, resampled, samplerate)
+        
+        print(f"--> Pitch shifted OK ({semitones} semitones)")
         return True
     except Exception as e:
         print(f"--> Pitch shift failed: {e}")
+        import shutil
+        shutil.copy(input_path, output_path)
         return False
+
 
 def gen_audio(text, voice, output_path, rate="+0%", pitch="+0Hz"):
     """توليد الصوت باستخدام gTTS (يعمل بدون websockets)"""
