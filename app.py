@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, send_file, send_from_directory
-import asyncio, edge_tts, os, uuid, json, subprocess, shutil
+import os, uuid, json, subprocess, shutil
 from datetime import datetime
+from gtts import gTTS
 from tashkeel_helper import add_tashkeel_to_text
 
 app = Flask(__name__)
