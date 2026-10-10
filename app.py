@@ -33,20 +33,19 @@ PITCH_MAP = {
     "sad": "-15Hz", "happy": "+20Hz", "angry": "-5Hz", "mysterious": "-20Hz",
 }
 
-async def gen_audio(text, voice, output_path, rate="+0%", pitch="+0Hz", max_retries=5):
-    for attempt in range(max_retries):
-        try:
-            print(f"--> Audio attempt {attempt+1}/{max_retries}")
-            communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
-            await communicate.save(output_path)
-            print(f"--> Audio OK")
-            return True
-        except Exception as e:
-            print(f"--> Audio failed: {str(e)[:80]}")
-            if attempt < max_retries - 1:
-                await asyncio.sleep(3 + attempt * 2)
-            else:
-                raise Exception(f"Edge-TTS failed after {max_retries} attempts")
+def gen_audio(text, voice, output_path, rate="+0%", pitch="+0Hz"):
+    """توليد الصوت باستخدام gTTS (يعمل بدون websockets)"""
+    print(f"--> gTTS: generating audio...")
+    try:
+        # gTTS يدعم العربية
+        slow = (rate == "-30%")
+        tts = gTTS(text=text, lang='ar', slow=slow)
+        tts.save(output_path)
+        print(f"--> Audio OK")
+        return True
+    except Exception as e:
+        print(f"--> Audio failed: {str(e)[:100]}")
+        raise
 
 def add_music_audio(aud, mus, out):
     subprocess.run(["ffmpeg","-y","-i",aud,"-i",mus,"-filter_complex","[0:a]volume=1.0[a1];[1:a]volume=0.20[a2];[a1][a2]amix=inputs=2:duration=first[aout]","-map","[aout]","-c:a","libmp3lame","-b:a","192k",out], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -100,7 +99,7 @@ def tts_gen():
     out = os.path.join('/root/tts_app', fn)
     try:
         print(f"--> TTS: voice={voice}, effect={effect}, pitch={pitch}")
-        asyncio.run(gen_audio(text, voice, out, rate, pitch))
+        gen_audio(text, voice, out, rate, pitch)
         mt = d.get('music_type','none')
         um = d.get('uploaded_music','')
         mp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "background_music.mp3") if mt == 'app' else (os.path.join(UPLOAD_FOLDER, um) if mt == 'uploaded' and um else None)
