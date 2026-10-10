@@ -47,10 +47,60 @@ import io
 
 
 def gen_audio(text, voice, output_path, rate="+0%", pitch="+0Hz"):
-    print(f"--> gTTS: voice={voice}, rate={rate}")
+    """توليد الصوت مع تغيير النغمة والسرعة عبر ffmpeg"""
+    import subprocess
+    print(f"--> TTS: voice={voice}, rate={rate}")
+    
     slow = (rate == "-30%")
+    temp_path = output_path + ".raw.mp3"
     tts = gTTS(text=text, lang='ar', slow=slow)
-    tts.save(output_path)
+    tts.save(temp_path)
+    
+    # تحديد إذا كان الصوت ذكورياً
+    male_voices = [
+        "ShakirNeural", "HamedNeural", "JamalNeural", "IsmaelNeural",
+        "HamdanNeural", "BasselNeural", "OmarNeural", "HediNeural",
+        "TaimNeural", "LaithNeural", "RamiNeural", "SalehNeural"
+    ]
+    is_male = any(v in voice for v in male_voices)
+    
+    # تحديد عامل السرعة
+    speed_map = {
+        "+0%": 1.0,
+        "+30%": 1.3,
+        "+50%": 1.5,
+        "-30%": 0.7,
+    }
+    user_speed = speed_map.get(rate, 1.0)
+    
+    try:
+        if is_male:
+            # خفض النغمة 25% + تعويض السرعة
+            pitch_factor = 0.75
+            tempo = (1.0 / pitch_factor) * user_speed
+            af = f"asetrate=44100*{pitch_factor},atempo={tempo}"
+        else:
+            # صوت أنثوي: فقط تغيير السرعة
+            if user_speed != 1.0:
+                af = f"atempo={user_speed}"
+            else:
+                import shutil
+                shutil.move(temp_path, output_path)
+                print("--> Audio OK")
+                return True
+        
+        cmd = ["ffmpeg", "-y", "-i", temp_path, "-af", af, output_path]
+        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        
+        import os
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        print(f"--> Male voice OK (pitch={pitch_factor}, tempo={tempo})")
+    except Exception as e:
+        print(f"--> Failed: {e}, using original")
+        import shutil
+        shutil.move(temp_path, output_path)
+    
     print("--> Audio OK")
     return True
 
