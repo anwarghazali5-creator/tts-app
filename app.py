@@ -34,6 +34,32 @@ PITCH_MAP = {
     "sad": "-15Hz", "happy": "+20Hz", "angry": "-5Hz", "mysterious": "-20Hz",
 }
 
+
+import numpy as np
+import soundfile as sf
+import io
+
+def pitch_shift_audio(input_path, output_path, semitones=-5):
+    """خفض النغمة لتحويل الصوت الأنثوي إلى ذكوري"""
+    try:
+        # قراءة الصوت
+        data, samplerate = sf.read(input_path)
+        
+        # تغيير النغمة بتغيير معدل العينة
+        factor = 2 ** (semitones / 12.0)
+        new_samplerate = int(samplerate * factor)
+        
+        # حفظ بمعدل العينة الجديد (يغير النغمة والسرعة)
+        sf.write(output_path, data, new_samplerate)
+        
+        # استخدام gTTS لجعل الصوت بالسرعة الصحيحة
+        # (اختياري: نتركه كما هو)
+        print("--> Pitch shifted OK")
+        return True
+    except Exception as e:
+        print(f"--> Pitch shift failed: {e}")
+        return False
+
 def gen_audio(text, voice, output_path, rate="+0%", pitch="+0Hz"):
     """توليد الصوت باستخدام gTTS (يعمل بدون websockets)"""
     print(f"--> gTTS: generating audio...")
