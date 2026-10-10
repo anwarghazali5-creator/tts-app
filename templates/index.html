@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محول النص إلى صوت 🎙️</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, sans-serif; 
+            background: linear-gradient(135deg, #1e1e2f 0%, #2d2d44 100%); 
+            color: #fff; 
+            min-height: 100vh; 
+            padding: 20px; 
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        h1 { text-align: center; margin-bottom: 30px; font-size: 26px; color: #8b5cf6; }
+        label { display: block; margin-bottom: 8px; font-size: 14px; color: #a5b4fc; margin-top: 15px; }
+        textarea { 
+            width: 100%; min-height: 150px; padding: 14px; 
+            border-radius: 12px; border: 1px solid #444; 
+            background: #2a2a3e; color: #fff; font-size: 16px; 
+            font-family: inherit; resize: vertical; 
+        }
+        select, button { 
+            width: 100%; padding: 14px; 
+            border-radius: 12px; border: none; 
+            font-size: 16px; font-family: inherit; margin-top: 10px; 
+        }
+        select { background: #2a2a3e; color: #fff; border: 1px solid #444; }
+        button { 
+            background: linear-gradient(135deg, #6366f1, #8b5cf6); 
+            color: #fff; font-weight: bold; cursor: pointer; 
+            margin-top: 20px; font-size: 18px; padding: 16px; 
+        }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+        #status { 
+            display: none; margin-top: 20px; padding: 14px; 
+            background: #2a2a3e; border-radius: 12px; 
+            text-align: center; font-size: 15px;
+        }
+        #player { display: none; margin-top: 25px; }
+        audio { width: 100%; margin-top: 10px; }
+        .download-btn { 
+            background: linear-gradient(135deg, #10b981, #059669); 
+            margin-top: 10px; 
+        }
+        .char-counter { 
+            font-size: 12px; color: #888; 
+            text-align: left; margin-top: 5px; 
+        }
+        .rate-group { display: flex; gap: 8px; margin-top: 10px; }
+        .rate-group button { 
+            flex: 1; margin-top: 0; 
+            background: #3a3a4e; font-size: 13px; padding: 10px; 
+        }
+        .rate-group button.active { 
+            background: linear-gradient(135deg, #8b5cf6, #6366f1); 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎙️ محول النص إلى صوت</h1>
+        
+        <label>النص:</label>
+        <textarea id="text" placeholder="اكتب أو الصق النص هنا..." oninput="updateCounter()"></textarea>
+        <div class="char-counter"><span id="counter">0</span> حرف</div>
+        
+        <label>الصوت:</label>
+        <select id="voice">
+            {% for key, name in voices.items() %}
+            <option value="{{ key }}">{{ name }}</option>
+            {% endfor %}
+        </select>
+        
+        <label>السرعة:</label>
+        <div class="rate-group">
+            <button onclick="setRate('-30%', this)">🐢 بطيء</button>
+            <button class="active" onclick="setRate('+0%', this)">⚡ عادي</button>
+            <button onclick="setRate('+30%', this)">🚀 سريع</button>
+            <button onclick="setRate('+50%', this)">💨 أسرع</button>
+        </div>
+        
+        <button id="convertBtn">🎧 تحويل إلى صوت</button>
+        
+        <div id="status">جاري التحويل... ⏳</div>
+        
+        <div id="player">
+            <audio id="audioPlayer" controls></audio>
+            <button class="download-btn" id="downloadBtn">📥 تحميل الملف</button>
+        </div>
+    </div>
+    
+    <script>
+        let currentRate = '+0%';
+        let currentFile = null;
+        
+        function updateCounter() {
+            const len = document.getElementById('text').value.length;
+            document.getElementById('counter').innerText = len;
+        }
+        
+        function setRate(rate, btn) {
+            currentRate = rate;
+            document.querySelectorAll('.rate-group button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+        
+        document.getElementById('convertBtn').addEventListener('click', async function() {
+            const btn = this;
+            const text = document.getElementById('text').value.trim();
+            const voice = document.getElementById('voice').value;
+            const statusDiv = document.getElementById('status');
+            const player = document.getElementById('player');
+            const audioPlayer = document.getElementById('audioPlayer');
+            
+            if (!text) { alert('الرجاء إدخال النص'); return; }
+            if (text.length > 5000) { alert('النص طويل جداً (الحد الأقصى 5000 حرف)'); return; }
+            
+            btn.innerText = 'جاري التحويل... ⏳';
+            btn.disabled = true;
+            statusDiv.style.display = 'block';
+            statusDiv.innerText = '🎙️ جاري تحويل النص إلى صوت...';
+            player.style.display = 'none';
+            
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text, voice: voice, rate: currentRate })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    currentFile = data.file;
+                    audioPlayer.src = '/download/' + data.file;
+                    player.style.display = 'block';
+                    statusDiv.innerText = '✅ تم التحويل بنجاح!';
+                    setTimeout(() => { statusDiv.style.display = 'none'; }, 2000);
+                } else {
+                    alert('حدث خطأ: ' + (data.error || 'حاول مرة أخرى'));
+                    statusDiv.style.display = 'none';
+                }
+            } catch (error) {
+                alert('فشل الاتصال بالخادم');
+                statusDiv.style.display = 'none';
+            } finally {
+                btn.innerText = '🎧 تحويل إلى صوت';
+                btn.disabled = false;
+            }
+        });
+        
+        document.getElementById('downloadBtn').addEventListener('click', function() {
+            if (!currentFile) return;
+            const a = document.createElement('a');
+            a.href = '/download/' + currentFile;
+            a.download = 'voice_' + Date.now() + '.mp3';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+    </script>
+</body>
+</html>

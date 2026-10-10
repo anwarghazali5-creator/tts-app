@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="/static/icon-192.png">
+<title>محول النص إلى صوت 🎙️</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Tahoma, sans-serif; background: linear-gradient(135deg, #1e1e2f 0%, #2d2d44 100%); color: #fff; min-height: 100vh; padding: 20px; }
+.container { max-width: 600px; margin: 0 auto; }
+.back-btn { display: inline-block; color: #8b5cf6; text-decoration: none; font-size: 14px; margin-bottom: 15px; }
+h1 { text-align: center; margin-bottom: 20px; font-size: 24px; color: #8b5cf6; }
+label { display: block; margin-bottom: 8px; font-size: 14px; color: #a5b4fc; margin-top: 15px; }
+textarea { width: 100%; min-height: 100px; padding: 14px; border-radius: 12px; border: 1px solid #444; background: #2a2a3e; color: #fff; font-size: 16px; font-family: inherit; resize: vertical; margin-bottom: 8px; }
+select, button { width: 100%; padding: 14px; border-radius: 12px; border: none; font-size: 16px; font-family: inherit; margin-top: 10px; }
+select { background: #2a2a3e; color: #fff; border: 1px solid #444; }
+.btn-main { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-weight: bold; cursor: pointer; margin-top: 20px; font-size: 17px; padding: 16px; }
+.btn-main:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-tashkeel { background: linear-gradient(135deg, #10b981, #059669); margin-top: 10px; }
+.btn-secondary { background: linear-gradient(135deg, #10b981, #059669); }
+#status { display: none; margin-top: 20px; padding: 14px; background: #2a2a3e; border-radius: 12px; text-align: center; }
+#player { display: none; margin-top: 25px; }
+audio { width: 100%; margin-top: 10px; }
+.char-counter { font-size: 12px; color: #888; text-align: left; margin-top: 5px; }
+.rate-group { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.rate-group button { flex: 1; margin-top: 0; background: #3a3a4e; font-size: 12px; padding: 10px 5px; min-width: 55px; }
+.rate-group button.active { background: linear-gradient(135deg, #8b5cf6, #6366f1); }
+.tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+.tabs button { flex: 1; margin-top: 0; background: #3a3a4e; font-size: 14px; padding: 12px; }
+.tabs button.active { background: linear-gradient(135deg, #8b5cf6, #6366f1); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.text-item { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 10px; }
+.text-item textarea { flex: 1; min-height: 80px; margin-bottom: 0; }
+.text-item .remove-btn { background: #ef4444; padding: 10px; width: auto; margin-top: 0; min-width: 50px; border-radius: 12px; cursor: pointer; }
+.add-btn { background: linear-gradient(135deg, #10b981, #059669); margin-top: 10px; }
+.history-box { background: #2a2a3e; padding: 15px; border-radius: 12px; margin-top: 20px; border: 1px solid #6366f1; }
+.history-title { color: #8b5cf6; font-weight: bold; margin-bottom: 10px; font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
+.history-clear { background: #ef4444; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; width: auto; margin-top: 0; }
+.history-item { background: #1e1e2f; padding: 10px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.history-info { flex: 1; font-size: 12px; }
+.history-text { color: #ccc; margin-bottom: 4px; }
+.history-meta { color: #888; font-size: 11px; }
+.history-actions { display: flex; gap: 4px; }
+.history-actions button { padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; width: auto; margin-top: 0; }
+.play-btn { background: #10b981; }
+.delete-btn { background: #ef4444; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>🎙️ محول النص إلى صوت</h1>
+<div class="tabs">
+<button id="tabSingle" class="active">نص واحد</button>
+<button id="tabBatch">نصوص متعددة</button>
+</div>
+<div id="contentSingle" class="tab-content active">
+<label>النص:</label>
+<textarea id="text" placeholder="اكتب أو الصق النص هنا..." oninput="updateCounter()">مرحبا بكم في اختبار الأصوات</textarea>
+<div class="char-counter"><span id="counter">0</span> حرف</div>
+<button class="btn-tashkeel" id="tashkeelBtn">✨ تشكيل النص</button>
+</div>
+<div id="contentBatch" class="tab-content">
+<label>النصوص (سيتم دمجها في ملف واحد):</label>
+<div id="textList">
+<div class="text-item"><textarea placeholder="النص الأول..."></textarea><button class="remove-btn" onclick="removeText(this)">✕</button></div>
+</div>
+<button class="add-btn" onclick="addText()">➕ إضافة نص</button>
+</div>
+<label>الصوت الأساسي:</label>
+<select id="voice">
+{% for key, name in voices.items() %}<option value="{{ key }}">{{ name }}</option>{% endfor %}
+</select>
+<label>🎭 تأثير الصوت:</label>
+<div class="rate-group" id="effectGroup">
+<button data-effect="normal" class="active">🔊 عادي</button>
+<button data-effect="soft">🌸 رقيق</button>
+<button data-effect="child">👶 طفل</button>
+<button data-effect="elder">👴 شيخ</button>
+<button data-effect="deep">🎙️ عميق</button>
+<button data-effect="whisper">🤫 همس</button>
+<button data-effect="sad">😢 حزين</button>
+<button data-effect="happy">😊 فرح</button>
+<button data-effect="angry">😠 غاضب</button>
+<button data-effect="mysterious">🕵️ غامض</button>
+</div>
+<label>⚡ السرعة:</label>
+<div class="rate-group" id="rateGroup">
+<button data-rate="-20%">🐢 بطيء</button>
+<button data-rate="+0%" class="active">⚡ عادي</button>
+<button data-rate="+30%">🚀 سريع</button>
+<button data-rate="+60%">💨 سريع جداً</button>
+</div>
+<label>🎵 موسيقى خلفية:</label>
+<div class="rate-group" id="musicGroup">
+<button data-music="none" class="active">🔇 بدون</button>
+<button data-music="app">🎵 التطبيق</button>
+<button data-music="uploaded">📱 من هاتفي</button>
+</div>
+<div id="uploadArea" style="display:none;">
+<input type="file" id="musicFile" accept="audio/*" style="display:none;" />
+<button type="button" onclick="document.getElementById('musicFile').click()" style="background: #3a3a4e; padding: 10px;">📁 اختر ملف موسيقى (MP3)</button>
+<div id="uploadStatus" style="font-size: 12px; color: #a5b4fc; margin-top: 5px;"></div>
+</div>
+<button id="convertBtn" class="btn-main">🎧 تحويل إلى صوت</button>
+<div id="status">جاري التحويل... ⏳</div>
+<div id="player">
+<audio id="audioPlayer" controls></audio>
+<button class="btn-secondary" id="downloadBtn">📥 تحميل الملف</button>
+</div>
+<div class="history-box">
+<div class="history-title">
+<span>📚 السجل (آخر 10)</span>
+<button class="history-clear" onclick="clearHistory()">🗑️ حذف الكل</button>
+</div>
+<div id="historyList">جاري التحميل...</div>
+</div>
+</div>
+<script>
+let currentRate = '+0%';
+let currentFile = null;
+let currentTab = 'single';
+let musicType = 'none', uploadedMusicFile = '';
+let voiceEffect = 'normal';
+
+function updateCounter() { document.getElementById('counter').innerText = document.getElementById('text').value.length; }
+updateCounter();
+
+document.querySelectorAll('#effectGroup button').forEach(btn => {
+    btn.onclick = function() {
+        voiceEffect = this.dataset.effect;
+        document.querySelectorAll('#effectGroup button').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+    };
+});
+
+document.querySelectorAll('#rateGroup button').forEach(btn => {
+    btn.onclick = function() {
+        currentRate = this.dataset.rate;
+        document.querySelectorAll('#rateGroup button').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+    };
+});
+
+document.querySelectorAll('#musicGroup button').forEach(btn => {
+    btn.onclick = function() {
+        musicType = this.dataset.music;
+        document.querySelectorAll('#musicGroup button').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('uploadArea').style.display = (musicType === 'uploaded') ? 'block' : 'none';
+    };
+});
+
+function addText() {
+    const list = document.getElementById('textList');
+    const div = document.createElement('div');
+    div.className = 'text-item';
+    div.innerHTML = '<textarea placeholder="نص جديد..."></textarea><button class="remove-btn" onclick="removeText(this)">✕</button>';
+    list.appendChild(div);
+}
+function removeText(btn) {
+    const list = document.getElementById('textList');
+    if (list.children.length > 1) btn.parentElement.remove();
+    else alert('يجب أن يبقى نص واحد على الأقل');
+}
+
+document.getElementById('tabSingle').onclick = function() {
+    currentTab = 'single';
+    this.classList.add('active');
+    document.getElementById('tabBatch').classList.remove('active');
+    document.getElementById('contentSingle').classList.add('active');
+    document.getElementById('contentBatch').classList.remove('active');
+};
+document.getElementById('tabBatch').onclick = function() {
+    currentTab = 'batch';
+    this.classList.add('active');
+    document.getElementById('tabSingle').classList.remove('active');
+    document.getElementById('contentBatch').classList.add('active');
+    document.getElementById('contentSingle').classList.remove('active');
+};
+
+document.getElementById('musicFile').onchange = async function() {
+    const file = this.files[0];
+    if (!file) return;
+    const statusDiv = document.getElementById('uploadStatus');
+    statusDiv.innerText = '⏳ جاري الرفع...';
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+        const r = await fetch('/upload_music', { method: 'POST', body: formData });
+        const d = await r.json();
+        if (r.ok && d.success) { uploadedMusicFile = d.file; statusDiv.innerText = '✅ ' + file.name; }
+        else statusDiv.innerText = '❌ فشل الرفع';
+    } catch (e) { statusDiv.innerText = '❌ خطأ'; }
+};
+
+document.getElementById('tashkeelBtn').onclick = async function() {
+    const btn = this;
+    const text = document.getElementById('text').value;
+    if (!text) return alert('أدخل النص');
+    btn.disabled = true; btn.innerText = '⏳ جاري التشكيل...';
+    try {
+        const r = await fetch('/tashkeel', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+        const d = await r.json();
+        if (r.ok && d.tashkeel) { document.getElementById('text').value = d.tashkeel; updateCounter(); }
+    } catch(e) { alert('خطأ'); }
+    btn.disabled = false; btn.innerText = '✨ تشكيل النص';
+};
+
+document.getElementById('convertBtn').onclick = async function() {
+    const btn = this;
+    const voice = document.getElementById('voice').value;
+    let endpoint = '/tts_generate';
+    let body = { voice, rate: currentRate, music_type: musicType, uploaded_music: uploadedMusicFile, voice_effect: voiceEffect };
+    if (currentTab === 'single') {
+        const text = document.getElementById('text').value.trim();
+        if (!text) return alert('أدخل النص');
+        body.text = text;
+    } else {
+        const textareas = document.querySelectorAll('#textList textarea');
+        const texts = Array.from(textareas).map(t => t.value.trim()).filter(t => t);
+        if (texts.length === 0) return alert('أدخل نصوص');
+        endpoint = '/tts_batch';
+        body.texts = texts;
+    }
+    btn.disabled = true; btn.innerText = '⏳ جاري التحويل...';
+    document.getElementById('status').style.display = 'block';
+    document.getElementById('status').innerText = '🎙️ جاري التحويل... (التأثير: ' + voiceEffect + ')';
+    document.getElementById('player').style.display = 'none';
+    try {
+        const r = await fetch(endpoint, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        const d = await r.json();
+        if (r.ok && d.success) {
+            currentFile = d.file;
+            document.getElementById('audioPlayer').src = '/download/' + d.file;
+            document.getElementById('player').style.display = 'block';
+            document.getElementById('status').style.display = 'none';
+            loadHistory();
+        } else alert('خطأ: ' + (d.error || ''));
+    } catch(e) { alert('فشل الاتصال'); }
+    btn.disabled = false; btn.innerText = '🎧 تحويل إلى صوت';
+};
+
+document.getElementById('downloadBtn').onclick = function() {
+    if (!currentFile) return;
+    const a = document.createElement('a');
+    a.href = '/download/' + currentFile;
+    a.download = 'voice_' + Date.now() + '.mp3';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+};
+
+async function loadHistory() {
+    try {
+        const r = await fetch('/history');
+        const d = await r.json();
+        const list = document.getElementById('historyList');
+        if (d.history.length === 0) { list.innerHTML = '<p style="color:#888;text-align:center;font-size:14px;">لا يوجد سجل</p>'; return; }
+        list.innerHTML = d.history.map(item => '<div class="history-item"><div class="history-info"><div class="history-text">' + item.text + '</div><div class="history-meta">🎤 ' + item.voice + ' • ' + item.timestamp + '</div></div><div class="history-actions"><button class="play-btn" onclick="playHistory(\'' + item.file + '\')">▶️</button><button class="delete-btn" onclick="deleteHistory(\'' + item.file + '\')">🗑️</button></div></div>').join('');
+    } catch (e) {}
+}
+
+async function playHistory(filename) {
+    const audioPlayer = document.getElementById('audioPlayer');
+    audioPlayer.src = '/download/' + filename;
+    document.getElementById('player').style.display = 'block';
+    audioPlayer.play();
+}
+
+async function deleteHistory(filename) {
+    if (!confirm('حذف؟')) return;
+    await fetch('/history/delete/' + filename, { method: 'DELETE' });
+    loadHistory();
+}
+
+async function clearHistory() {
+    if (!confirm('حذف كل السجل؟')) return;
+    await fetch('/history/clear', { method: 'DELETE' });
+    loadHistory();
+}
+
+loadHistory();
+</script>
+</body>
+</html>
