@@ -28,6 +28,14 @@ VOICES = {
     "ar-TN-HediNeural": "ذكوري - تونسي",
 }
 
+MALE_VOICES = {
+    "ar-EG-ShakirNeural", "ar-SA-HamedNeural", "ar-MA-JamalNeural",
+    "ar-DZ-IsmaelNeural", "ar-AE-HamdanNeural", "ar-IQ-BasselNeural",
+    "ar-LY-OmarNeural", "ar-TN-HediNeural",
+}
+
+
+
 PITCH_MAP = {
     "normal": "+0Hz", "child": "+50Hz", "elder": "-40Hz",
     "deep": "-25Hz", "soft": "+25Hz", "whisper": "-10Hz",
